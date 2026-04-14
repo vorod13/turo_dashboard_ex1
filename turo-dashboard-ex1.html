@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Turo · Incidentals & Claims · PM Dashboard</title>
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<style>
+  :root {
+    --bg:      #f5f4f0;
+    --card:    #ffffff;
+    --teal:    #0d6e6e;
+    --tealL:   #e0f2f2;
+    --coral:   #e05c3a;
+    --coralL:  #fde8e3;
+    --gold:    #c69c3a;
+    --goldL:   #fef5dc;
+    --border:  #e0ddd5;
+    --navy:    #1a2a3a;
+    --slate:   #4a5568;
+    --slateL:  #8a9ab0;
+    --green:   #2d8a5e;
+    --greenL:  #d4f0e4;
+    --text:    #1a2a3a;
+    --textMid: #4a5568;
+    --textDim: #9aa5b4;
+    --purple:  #7c3aed;
+    --red:     #c0392b;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: 'Sora', sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; }
+
+  /* ── Header ── */
+  #header {
+    background: var(--card); border-bottom: 1px solid var(--border);
+    padding: 0 32px; position: sticky; top: 0; z-index: 50;
+  }
+  #header-top {
+    display: flex; align-items: center; justify-content: space-between; padding: 16px 0 0;
+  }
+  #header-title { font-size: 18px; font-weight: 700; color: var(--navy); }
+  #header-sub { font-size: 12px; color: var(--slateL); margin-top: 2px; }
+  #header-right { display: flex; gap: 12px; align-items: center; }
+
+  /* ── Trust Health Score ── */
+  #ths-pill {
+    display: flex; align-items: center; gap: 10px;
+    border-radius: 12px; padding: 8px 14px 8px 10px;
+    cursor: pointer; border: 1.5px solid; transition: all 0.2s;
+    background: none; font-family: 'Sora', sans-serif;
+  }
+  #ths-pill:hover { transform: translateY(-1px); box-shadow: 0 4px 16px rgba(0,0,0,0.1); }
+  #ths-popover {
+    display: none; position: absolute; top: calc(100% + 10px); right: 0; z-index: 200;
+    background: var(--card); border: 1px solid var(--border);
+    border-radius: 14px; padding: 20px; width: 300px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.14);
+    animation: fadeIn 0.2s ease both;
+  }
+  #ths-popover.open { display: block; }
+  #ths-wrap { position: relative; }
+
+  /* ── Tabs ── */
+  #tabs { display: flex; gap: 4px; margin-top: 12px; }
+  .tab-btn {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    cursor: pointer; font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 600;
+    padding: 9px 16px 12px; color: var(--slateL); transition: all 0.18s;
+  }
+  .tab-btn.active { color: var(--teal); border-bottom-color: var(--teal); }
+  .tab-btn:hover { color: var(--navy); }
+
+  /* ── Layout ── */
+  #content { padding: 28px 32px 0; }
+  .tab-panel { display: none; animation: fadeIn 0.35s ease both; }
+  .tab-panel.active { display: block; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+  /* ── Cards ── */
+  .card {
+    background: var(--card); border-radius: 14px; border: 1px solid var(--border);
+    box-shadow: 0 1px 8px rgba(0,0,0,0.05);
+  }
+  .card-pad { padding: 22px; }
+
+  /* ── Grid helpers ── */
+  .grid-4 { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-2-1 { display: grid; grid-template-columns: 2fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 12px; margin-bottom: 20px; }
+  .mb-20 { margin-bottom: 20px; }
+
+  /* ── KPI Cards ── */
+  .kpi-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 14px;
+    padding: 20px 22px; position: relative; overflow: hidden;
+  }
+  .kpi-top-bar {
+    position: absolute; top: 0; left: 0; right: 0; height: 3px; border-radius: 14px 14px 0 0;
+  }
+  .kpi-label { font-size: 11px; color: var(--slateL); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 8px; }
+  .kpi-val { font-family: 'JetBrains Mono', monospace; font-size: 30px; font-weight: 600; color: var(--navy); line-height: 1; margin-bottom: 6px; }
+  .kpi-delta { font-size: 12px; font-weight: 700; }
+  .kpi-sub { font-size: 11px; color: var(--textDim); margin-left: 6px; }
+
+  /* ── Section header ── */
+  .sec-header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 16px; }
+  .sec-title { font-size: 15px; font-weight: 700; color: var(--navy); margin-bottom: 2px; }
+  .sec-sub { font-size: 12px; color: var(--slateL); }
+
+  /* ── Metric rows ── */
+  .metric-row {
+    display: flex; justify-content: space-between; align-items: center;
+    padding: 11px 0; border-bottom: 1px solid var(--border); font-size: 13px;
+  }
+  .metric-row:last-child { border-bottom: none; }
+
+  /* ── Badge ── */
+  .badge {
+    display: inline-flex; align-items: center; gap: 4px; padding: 3px 10px;
+    border-radius: 20px; font-size: 11px; font-weight: 700;
+  }
+
+  /* ── Insight cards ── */
+  .insight-card {
+    border-left: 3px solid; border-radius: 0 10px 10px 0;
+    padding: 14px 16px; margin-bottom: 12px;
+  }
+  .insight-type { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; }
+  .insight-text { font-size: 13px; color: var(--textMid); line-height: 1.6; margin-top: 2px; }
+
+  /* ── Progress bar ── */
+  .prog-track { height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 3px; transition: width 0.6s ease; }
+
+  /* ── Chart containers ── */
+  .chart-wrap { position: relative; }
+
+  /* ── OKR rows ── */
+  .okr-row { padding: 16px 0; border-bottom: 1px solid var(--border); }
+  .okr-row:last-child { border-bottom: none; }
+
+  /* ── Funnel bars ── */
+  .funnel-bar-wrap { width: 80px; height: 6px; border-radius: 3px; background: var(--border); overflow: hidden; display: inline-block; }
+  .funnel-bar { height: 100%; border-radius: 3px; }
+
+  /* ── Footer ── */
+  #footer {
+    margin: 24px 32px 0; padding: 14px 20px; background: var(--card);
+    border: 1px solid var(--border); border-radius: 10px;
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 11px; color: var(--slateL);
+  }
+
+  /* ── Pie legend ── */
+  .pie-legend { display: flex; flex-direction: column; gap: 6px; margin-top: 12px; }
+  .pie-legend-item { display: flex; align-items: center; gap: 8px; font-size: 11px; }
+  .pie-dot { width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+
+  /* ── CSAT legend ── */
+  .csat-legend { display: flex; gap: 20px; justify-content: center; margin-top: 14px; }
+  .csat-leg-item { display: flex; align-items: center; gap: 8px; font-size: 12px; }
+  .csat-leg-line { width: 18px; height: 3px; border-radius: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ══ HEADER ════════════════════════════════════════════════════════════════ -->
+<div id="header">
+  <div id="header-top">
+    <div>
+      <div id="header-title">Incidentals &amp; Claims</div>
+      <div id="header-sub">Risk &amp; Protection · Lead PM Dashboard · Mark Lackey</div>
+    </div>
+    <div id="header-right">
+      <!-- Trust Health Score -->
+      <div id="ths-wrap">
+        <button id="ths-pill" onclick="toggleTHS()">
+          <svg id="ths-svg" width="40" height="40" style="flex-shrink:0">
+            <circle cx="20" cy="20" r="16" fill="none" stroke-width="4" id="ths-track"/>
+            <circle cx="20" cy="20" r="16" fill="none" stroke-width="4" stroke-linecap="round"
+              transform="rotate(-90 20 20)" id="ths-arc"/>
+            <text x="20" y="24" text-anchor="middle" id="ths-num"
+              style="font-family:'JetBrains Mono',monospace;font-size:11px;font-weight:700">74</text>
+          </svg>
+          <div style="text-align:left">
+            <div id="ths-label" style="font-size:13px;font-weight:700;line-height:1">Trust Health</div>
+            <div id="ths-sub" style="font-size:11px;margin-top:2px">
+              <span id="ths-status-txt" style="font-weight:700"></span>
+              <span> · </span>
+              <span id="ths-delta-txt" style="font-weight:600"></span>
+            </div>
+          </div>
+          <span id="ths-arrow" style="font-size:14px;margin-left:2px">▼</span>
+        </button>
+
+        <div id="ths-popover">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+            <div>
+              <span id="ths-big-num" style="font-family:'JetBrains Mono',monospace;font-size:32px;font-weight:700"></span>
+              <span style="font-size:14px;color:var(--slateL)"> / 100</span>
+            </div>
+            <div style="text-align:right">
+              <div id="ths-badge" class="badge"></div>
+              <div id="ths-wow" style="font-size:11px;color:var(--slateL);margin-top:4px"></div>
+            </div>
+          </div>
+          <div style="height:1px;background:var(--border);margin-bottom:14px"></div>
+          <div style="font-size:11px;font-weight:600;color:var(--slateL);text-transform:uppercase;letter-spacing:0.07em;margin-bottom:10px">Pillar Breakdown</div>
+          <div id="ths-pillars"></div>
+          <div style="height:1px;background:var(--border);margin:14px 0 12px"></div>
+          <div style="font-size:11px;color:var(--slateL);line-height:1.6">
+            Composite of resolution speed, dispute rate, CSAT, and cost efficiency. Equal-weighted · Updated daily.
+          </div>
+        </div>
+      </div>
+
+      <div style="display:flex;gap:10px;align-items:center">
+        <div class="badge" style="background:var(--greenL);color:var(--green);font-size:12px">● Live data</div>
+        <div style="font-size:12px;color:var(--slateL)">Q1 2026 · Mar 11</div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabs">
+    <button class="tab-btn active" onclick="switchTab('overview',this)">Overview</button>
+    <button class="tab-btn" onclick="switchTab('incidents',this)">Incidents</button>
+    <button class="tab-btn" onclick="switchTab('satisfaction',this)">Satisfaction</button>
+    <button class="tab-btn" onclick="switchTab('okrs',this)">OKRs</button>
+  </div>
+</div>
+
+<!-- ══ CONTENT ═══════════════════════════════════════════════════════════════ -->
+<div id="content">
+
+  <!-- ── Overview ── -->
+  <div id="panel-overview" class="tab-panel active">
+    <!-- KPIs -->
+    <div class="grid-4" id="kpi-row"></div>
+
+    <div class="grid-2-1">
+      <div class="card card-pad">
+        <div class="sec-header">
+          <div>
+            <div class="sec-title">Resolution Time Trend</div>
+            <div class="sec-sub">Average days to close a claim · vs 6-day target</div>
+          </div>
+        </div>
+        <div class="chart-wrap" style="height:220px"><canvas id="chart-resolution"></canvas></div>
+      </div>
+      <div class="card card-pad">
+        <div class="sec-header"><div>
+          <div class="sec-title">Claim Mix</div>
+          <div class="sec-sub">By incident category</div>
+        </div></div>
+        <div class="chart-wrap" style="height:180px"><canvas id="chart-pie"></canvas></div>
+        <div class="pie-legend" id="pie-legend"></div>
+      </div>
+    </div>
+
+    <div class="card card-pad mb-20">
+      <div class="sec-header">
+        <div>
+          <div class="sec-title">PM Insights &amp; Signals</div>
+          <div class="sec-sub">Key findings and recommended actions this quarter</div>
+        </div>
+      </div>
+      <div id="insights"></div>
+    </div>
+  </div>
+
+  <!-- ── Incidents ── -->
+  <div id="panel-incidents" class="tab-panel">
+    <div class="grid-2">
+      <div class="card card-pad">
+        <div class="sec-header"><div>
+          <div class="sec-title">Claim Conversion Funnel</div>
+          <div class="sec-sub">Claims volume funnel · this quarter</div>
+        </div></div>
+        <div id="funnel-table"></div>
+      </div>
+      <div class="card card-pad">
+        <div class="sec-header"><div>
+          <div class="sec-title">By Incident Type</div>
+          <div class="sec-sub">Resolution rate and avg cost by type</div>
+        </div></div>
+        <div id="incident-type-table"></div>
+      </div>
+    </div>
+    <div class="card card-pad mb-20">
+      <div class="sec-header"><div>
+        <div class="sec-title">Dispute Volume Over Time</div>
+        <div class="sec-sub">Monthly dispute count trend · lower is better</div>
+      </div></div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chart-disputes"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ── Satisfaction ── -->
+  <div id="panel-satisfaction" class="tab-panel">
+    <div class="card card-pad mb-20">
+      <div class="sec-header"><div>
+        <div class="sec-title">Post-Claim CSAT Trend</div>
+        <div class="sec-sub">Host vs Guest satisfaction after a claim is filed · out of 5.0</div>
+      </div></div>
+      <div class="chart-wrap" style="height:240px"><canvas id="chart-csat"></canvas></div>
+      <div class="csat-legend">
+        <div class="csat-leg-item">
+          <div class="csat-leg-line" style="background:var(--teal)"></div>
+          <span style="color:var(--slateL)">Host CSAT: </span>
+          <strong style="color:var(--navy)">4.4 → target 4.5</strong>
+        </div>
+        <div class="csat-leg-item">
+          <div class="csat-leg-line" style="background:var(--coral)"></div>
+          <span style="color:var(--slateL)">Guest CSAT: </span>
+          <strong style="color:var(--navy)">4.2 → target 4.5</strong>
+        </div>
+      </div>
+    </div>
+    <div class="grid-2">
+      <div class="card card-pad">
+        <div class="sec-header"><div>
+          <div class="sec-title">Host Pain Points</div>
+          <div class="sec-sub">Top themes from post-claim feedback</div>
+        </div></div>
+        <div id="host-pain"></div>
+      </div>
+      <div class="card card-pad">
+        <div class="sec-header"><div>
+          <div class="sec-title">Guest Pain Points</div>
+          <div class="sec-sub">Top themes from post-claim feedback</div>
+        </div></div>
+        <div id="guest-pain"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── OKRs ── -->
+  <div id="panel-okrs" class="tab-panel">
+    <div class="grid-3" id="okr-summary"></div>
+    <div class="card card-pad mb-20">
+      <div class="sec-header"><div>
+        <div class="sec-title">Objective &amp; Key Results</div>
+        <div class="sec-sub">Q1 2026 · Risk &amp; Protection · Incidentals domain</div>
+      </div></div>
+      <div id="okr-list"></div>
+    </div>
+    <div class="card card-pad mb-20">
+      <div class="sec-header"><div>
+        <div class="sec-title">Cost Efficiency Trend</div>
+        <div class="sec-sub">Cost per claim and total claims spend</div>
+      </div></div>
+      <div class="chart-wrap" style="height:200px"><canvas id="chart-cost"></canvas></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ── Footer ── -->
+<div id="footer">
+  <span>📁 <strong style="color:var(--navy)">github.com/vorod13/turo_dashboard_ex1</strong> · Turo Risk &amp; Protection PM Dashboard</span>
+  <span>Built by Mark Lackey · Lead PM Candidate · 150K hosts · 3.5M guests · ~$1B revenue context</span>
+</div>
+
+<script>
+// ══ DATA ═════════════════════════════════════════════════════════════════════
+const RESOLUTION = [
+  {mo:"Aug",avgDays:9.2,target:6,disputes:18},
+  {mo:"Sep",avgDays:8.7,target:6,disputes:17},
+  {mo:"Oct",avgDays:8.1,target:6,disputes:15},
+  {mo:"Nov",avgDays:7.6,target:6,disputes:14},
+  {mo:"Dec",avgDays:7.0,target:6,disputes:13},
+  {mo:"Jan",avgDays:6.8,target:6,disputes:11},
+  {mo:"Feb",avgDays:6.2,target:6,disputes:10},
+  {mo:"Mar",avgDays:5.9,target:6,disputes:9},
+];
+
+const INCIDENTS = [
+  {type:"Vehicle Damage", pct:42, cost:680, resolved:78,  color:"#e05c3a"},
+  {type:"Cleaning/Smoke",  pct:23, cost:180, resolved:89,  color:"#c69c3a"},
+  {type:"Late Return",     pct:16, cost:95,  resolved:94,  color:"#0d6e6e"},
+  {type:"Fuel/Charging",   pct:11, cost:55,  resolved:96,  color:"#7c3aed"},
+  {type:"Tolls/Violations",pct:5,  cost:120, resolved:91,  color:"#0e7490"},
+  {type:"Other",           pct:3,  cost:220, resolved:82,  color:"#8a9ab0"},
+];
+
+const FUNNEL = [
+  {stage:"Trips completed",    n:12400, pct:100,  color:"#0d6e6e"},
+  {stage:"Incidents reported", n:743,   pct:6.0,  color:"#0d6e6e"},
+  {stage:"Claims filed",       n:481,   pct:3.9,  color:"#c69c3a"},
+  {stage:"Disputed by guest",  n:112,   pct:0.9,  color:"#c69c3a"},
+  {stage:"Escalated to agent", n:48,    pct:0.39, color:"#e05c3a"},
+  {stage:"Unresolved >14d",    n:11,    pct:0.09, color:"#e05c3a"},
+];
+
+const CSAT = [
+  {mo:"Sep",host:3.6,guest:3.4},
+  {mo:"Oct",host:3.7,guest:3.5},
+  {mo:"Nov",host:3.9,guest:3.6},
+  {mo:"Dec",host:4.0,guest:3.8},
+  {mo:"Jan",host:4.1,guest:3.9},
+  {mo:"Feb",host:4.3,guest:4.0},
+  {mo:"Mar",host:4.4,guest:4.2},
+];
+
+const COSTS = [
+  {mo:"Sep",total:2.1,perClaim:580},
+  {mo:"Oct",total:2.0,perClaim:545},
+  {mo:"Nov",total:1.9,perClaim:520},
+  {mo:"Dec",total:1.8,perClaim:498},
+  {mo:"Jan",total:1.7,perClaim:471},
+  {mo:"Feb",total:1.6,perClaim:446},
+  {mo:"Mar",total:1.5,perClaim:420},
+];
+
+const OKRS = [
+  {obj:"Reduce avg resolution time to ≤ 5 days",  progress:82, color:"#0d6e6e", ytd:"5.9d",  target:"5.0d",  status:"on-track"},
+  {obj:"Dispute rate ≤ 5% of claims",              progress:91, color:"#2d8a5e", ytd:"5.8%",  target:"5.0%",  status:"on-track"},
+  {obj:"Host CSAT ≥ 4.5 post-claim",               progress:73, color:"#c69c3a", ytd:"4.4",   target:"4.5",   status:"at-risk"},
+  {obj:"Cost per claim ≤ $380",                    progress:61, color:"#e05c3a", ytd:"$420",  target:"$380",  status:"at-risk"},
+  {obj:"AI auto-resolution rate ≥ 30%",            progress:40, color:"#7c3aed", ytd:"12%",   target:"30%",   status:"behind"},
+  {obj:"Agent escalation rate ≤ 0.3% of trips",   progress:88, color:"#0d6e6e", ytd:"0.39%", target:"0.30%", status:"on-track"},
+];
+
+const INSIGHTS = [
+  {color:"#e05c3a", icon:"🔴", type:"Risk",        bg:"#fde8e3", text:"Vehicle damage claims take 3.4× longer to resolve than other categories. AI photo analysis adoption at 34% — targeting 70%+ to cut specialist review time by 40%."},
+  {color:"#c69c3a", icon:"🟡", type:"Watch",       bg:"#fef5dc", text:"Host CSAT dips to 3.9 for claims >7 days. Proactive status updates (proposed: day 3 + day 6 automated nudges) shown to lift satisfaction +0.4 pts in A/B."},
+  {color:"#0d6e6e", icon:"🟢", type:"Win",         bg:"#e0f2f2", text:"Dispute rate down 39% QoQ after shipping structured pre/post-trip photo checklist. Projecting $220K annual cost reduction at current trajectory."},
+  {color:"#7c3aed", icon:"🔵", type:"Opportunity", bg:"#ede9fe", text:"12% of claims filed >20 hours after trip end are denied on technicality. In-app 18-hour nudge (MVP: push notification) could recover ~$180K in host reimbursements annually."},
+];
+
+const HOST_PAIN = [
+  {issue:"Claim status not visible",       pct:38, color:"#e05c3a"},
+  {issue:"Resolution took too long",        pct:29, color:"#c69c3a"},
+  {issue:"Repair estimate disputed",        pct:18, color:"#0d6e6e"},
+  {issue:"Photo evidence not accepted",     pct:10, color:"#7c3aed"},
+  {issue:"Reimbursement amount unclear",    pct:5,  color:"#8a9ab0"},
+];
+
+const GUEST_PAIN = [
+  {issue:"Felt claim was unfair",           pct:44, color:"#e05c3a"},
+  {issue:"Charged without clear evidence",  pct:31, color:"#c69c3a"},
+  {issue:"No status updates during review", pct:16, color:"#0d6e6e"},
+  {issue:"Dispute process unclear",         pct:6,  color:"#7c3aed"},
+  {issue:"Account restricted unfairly",     pct:3,  color:"#8a9ab0"},
+];
+
+const THS = {
+  score: 74, prev: 68,
+  pillars: [
+    {label:"Resolution Speed", score:18, max:25, color:"#0d6e6e", detail:"5.9d vs 5.0d target"},
+    {label:"Dispute Rate",     score:21, max:25, color:"#2d8a5e", detail:"5.8% vs 5.0% target"},
+    {label:"CSAT",             score:20, max:25, color:"#c69c3a", detail:"4.3 avg vs 4.5 target"},
+    {label:"Cost Efficiency",  score:15, max:25, color:"#e05c3a", detail:"$420 vs $380 target"},
+  ]
+};
+
+// ══ HELPERS ══════════════════════════════════════════════════════════════════
+function thsConfig(score) {
+  if (score >= 85) return {label:"Healthy",  color:"#2d8a5e", bg:"#d4f0e4"};
+  if (score >= 70) return {label:"Moderate", color:"#c69c3a", bg:"#fef5dc"};
+  if (score >= 50) return {label:"At Risk",  color:"#e05c3a", bg:"#fde8e3"};
+  return                  {label:"Critical", color:"#c0392b", bg:"#fee2e2"};
+}
+
+const chartDefaults = {
+  font: { family: "'Sora', sans-serif", size: 11 },
+  color: '#8a9ab0',
+};
+Chart.defaults.font.family = "'Sora', sans-serif";
+Chart.defaults.font.size = 11;
+Chart.defaults.color = '#8a9ab0';
+
+// ══ TRUST HEALTH SCORE ═══════════════════════════════════════════════════════
+function initTHS() {
+  const cfg = thsConfig(THS.score);
+  const delta = THS.score - THS.prev;
+  const circ = 2 * Math.PI * 16;
+  const filled = (THS.score / 100) * circ;
+
+  // Pill styling
+  const pill = document.getElementById('ths-pill');
+  pill.style.background = cfg.bg;
+  pill.style.borderColor = cfg.color + '44';
+
+  // SVG
+  document.getElementById('ths-track').setAttribute('stroke', cfg.color + '22');
+  const arc = document.getElementById('ths-arc');
+  arc.setAttribute('stroke', cfg.color);
+  arc.setAttribute('stroke-dasharray', `${filled} ${circ}`);
+  document.getElementById('ths-num').setAttribute('fill', cfg.color);
+
+  document.getElementById('ths-label').style.color = cfg.color;
+  document.getElementById('ths-status-txt').textContent = cfg.label;
+  document.getElementById('ths-status-txt').style.color = cfg.color + 'cc';
+  document.getElementById('ths-delta-txt').textContent = (delta >= 0 ? '▲' : '▼') + ' ' + Math.abs(delta) + ' WoW';
+  document.getElementById('ths-delta-txt').style.color = cfg.color + 'cc';
+  document.getElementById('ths-arrow').style.color = cfg.color;
+
+  // Popover
+  document.getElementById('ths-big-num').textContent = THS.score;
+  document.getElementById('ths-big-num').style.color = cfg.color;
+  const badge = document.getElementById('ths-badge');
+  badge.textContent = cfg.label;
+  badge.style.background = cfg.bg;
+  badge.style.color = cfg.color;
+  document.getElementById('ths-wow').textContent = (delta >= 0 ? '▲' : '▼') + ' ' + Math.abs(delta) + ' pts vs last week';
+
+  const pillarsEl = document.getElementById('ths-pillars');
+  THS.pillars.forEach(p => {
+    pillarsEl.innerHTML += `
+      <div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;margin-bottom:5px">
+          <span style="font-size:12px;color:var(--textMid);font-weight:500">${p.label}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700;color:${p.color}">${p.score}/${p.max}</span>
+        </div>
+        <div class="prog-track"><div class="prog-fill" style="background:${p.color};width:${(p.score/p.max)*100}%"></div></div>
+        <div style="font-size:11px;color:var(--slateL);margin-top:3px">${p.detail}</div>
+      </div>`;
+  });
+}
+
+let thsOpen = false;
+function toggleTHS() {
+  thsOpen = !thsOpen;
+  const pop = document.getElementById('ths-popover');
+  pop.classList.toggle('open', thsOpen);
+  document.getElementById('ths-arrow').textContent = thsOpen ? '▲' : '▼';
+}
+
+document.addEventListener('click', e => {
+  if (!document.getElementById('ths-wrap').contains(e.target)) {
+    thsOpen = false;
+    document.getElementById('ths-popover').classList.remove('open');
+    document.getElementById('ths-arrow').textContent = '▼';
+  }
+});
+
+// ══ KPI ROW ══════════════════════════════════════════════════════════════════
+function initKPIs() {
+  const kpis = [
+    {label:"Avg Resolution Time", val:"5.9d", delta:"-35%", sub:"vs 9.2d baseline", accent:"#0d6e6e"},
+    {label:"Dispute Rate",        val:"5.8%", delta:"-39%", sub:"of all claims",    accent:"#2d8a5e"},
+    {label:"Host CSAT (post-claim)",val:"4.4",delta:"+22%", sub:"out of 5.0",       accent:"#c69c3a"},
+    {label:"Cost per Claim",      val:"$420", delta:"-28%", sub:"target: $380",     accent:"#e05c3a"},
+  ];
+  const row = document.getElementById('kpi-row');
+  kpis.forEach(k => {
+    row.innerHTML += `
+      <div class="kpi-card">
+        <div class="kpi-top-bar" style="background:${k.accent}"></div>
+        <div class="kpi-label">${k.label}</div>
+        <div class="kpi-val">${k.val}</div>
+        <div>
+          <span class="kpi-delta" style="color:#2d8a5e">${k.delta} YTD</span>
+          <span class="kpi-sub">${k.sub}</span>
+        </div>
+      </div>`;
+  });
+}
+
+// ══ INSIGHTS ══════════════════════════════════════════════════════════════════
+function initInsights() {
+  const el = document.getElementById('insights');
+  INSIGHTS.forEach(i => {
+    el.innerHTML += `
+      <div class="insight-card" style="border-left-color:${i.color};background:${i.bg}">
+        <div style="display:flex;gap:8px;align-items:flex-start">
+          <span style="font-size:16px">${i.icon}</span>
+          <div>
+            <span class="insight-type" style="color:${i.color}">${i.type} · </span>
+            <span class="insight-text">${i.text}</span>
+          </div>
+        </div>
+      </div>`;
+  });
+}
+
+// ══ PIE LEGEND ═══════════════════════════════════════════════════════════════
+function initPieLegend() {
+  const el = document.getElementById('pie-legend');
+  INCIDENTS.slice(0,4).forEach(d => {
+    el.innerHTML += `
+      <div class="pie-legend-item">
+        <div class="pie-dot" style="background:${d.color}"></div>
+        <span style="color:var(--textMid);flex:1">${d.type}</span>
+        <span style="font-family:monospace;font-weight:600;color:var(--navy)">${d.pct}%</span>
+      </div>`;
+  });
+}
+
+// ══ FUNNEL TABLE ══════════════════════════════════════════════════════════════
+function initFunnel() {
+  const el = document.getElementById('funnel-table');
+  FUNNEL.forEach(f => {
+    el.innerHTML += `
+      <div class="metric-row">
+        <span style="color:var(--textMid)">${f.stage}</span>
+        <div style="display:flex;align-items:center;gap:12px">
+          <div class="funnel-bar-wrap">
+            <div class="funnel-bar" style="background:${f.color};width:${Math.max(f.pct,0.5)}%"></div>
+          </div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:13px;font-weight:600;color:var(--navy);min-width:46px;text-align:right">${f.n.toLocaleString()}</span>
+        </div>
+      </div>`;
+  });
+}
+
+// ══ INCIDENT TYPE TABLE ═══════════════════════════════════════════════════════
+function initIncidentTypes() {
+  const el = document.getElementById('incident-type-table');
+  INCIDENTS.forEach(d => {
+    el.innerHTML += `
+      <div class="metric-row">
+        <div style="display:flex;align-items:center;gap:8px">
+          <div style="width:10px;height:10px;border-radius:2px;background:${d.color};flex-shrink:0"></div>
+          <span style="font-size:13px;color:var(--textMid)">${d.type}</span>
+        </div>
+        <div style="display:flex;gap:16px">
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--slateL)">Resolved</div>
+            <div style="font-family:monospace;font-size:13px;font-weight:700;color:${d.resolved>=90?'var(--green)':'var(--gold)'}">${d.resolved}%</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-size:11px;color:var(--slateL)">Avg cost</div>
+            <div style="font-family:monospace;font-size:13px;font-weight:700;color:var(--navy)">$${d.cost}</div>
+          </div>
+        </div>
+      </div>`;
+  });
+}
+
+// ══ PAIN POINTS ═══════════════════════════════════════════════════════════════
+function initPain(data, elId) {
+  const el = document.getElementById(elId);
+  data.forEach(p => {
+    el.innerHTML += `
+      <div class="metric-row">
+        <span style="font-size:13px;color:var(--textMid);flex:1">${p.issue}</span>
+        <div style="display:flex;align-items:center;gap:10px;flex-shrink:0">
+          <div style="width:60px;height:5px;border-radius:3px;background:var(--border)">
+            <div style="height:100%;width:${p.pct}%;background:${p.color};border-radius:3px"></div>
+          </div>
+          <span style="font-family:monospace;font-size:12px;font-weight:700;color:var(--navy);min-width:28px">${p.pct}%</span>
+        </div>
+      </div>`;
+  });
+}
+
+// ══ OKR SECTION ═══════════════════════════════════════════════════════════════
+function initOKRs() {
+  const counts = {on_track:0, at_risk:0, behind:0};
+  OKRS.forEach(o => { counts[o.status.replace('-','_')]++; });
+
+  const sumEl = document.getElementById('okr-summary');
+  [
+    {label:"On Track", n:counts.on_track, color:"#2d8a5e", bg:"#d4f0e4"},
+    {label:"At Risk",  n:counts.at_risk,  color:"#c69c3a", bg:"#fef5dc"},
+    {label:"Behind",   n:counts.behind,   color:"#e05c3a", bg:"#fde8e3"},
+  ].forEach(s => {
+    sumEl.innerHTML += `
+      <div class="card" style="padding:16px 18px;background:${s.bg};border-color:${s.color}33">
+        <div style="font-family:'JetBrains Mono',monospace;font-size:36px;font-weight:700;color:${s.color};line-height:1">${s.n}</div>
+        <div style="font-size:12px;color:${s.color};font-weight:600;margin-top:4px">${s.label}</div>
+      </div>`;
+  });
+
+  const statusStyle = {
+    'on-track': {bg:"#d4f0e4", color:"#2d8a5e", label:"On Track"},
+    'at-risk':  {bg:"#fef5dc", color:"#c69c3a", label:"At Risk"},
+    'behind':   {bg:"#fde8e3", color:"#e05c3a", label:"Behind"},
+  };
+
+  const listEl = document.getElementById('okr-list');
+  OKRS.forEach((o, i) => {
+    const st = statusStyle[o.status];
+    listEl.innerHTML += `
+      <div class="okr-row" ${i===OKRS.length-1?'style="border-bottom:none"':''}>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+          <div style="font-size:14px;font-weight:500;color:var(--text);flex:1;padding-right:12px">${o.obj}</div>
+          <div class="badge" style="background:${st.bg};color:${st.color};flex-shrink:0">${st.label}</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:14px">
+          <div class="prog-track" style="flex:1">
+            <div class="prog-fill" style="background:linear-gradient(90deg,${o.color},${o.color}99);width:${o.progress}%"></div>
+          </div>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:600;color:var(--navy);min-width:32px">${o.progress}%</span>
+          <div style="display:flex;gap:12px;font-size:12px">
+            <span style="color:var(--slateL)">YTD: <strong style="color:var(--navy)">${o.ytd}</strong></span>
+            <span style="color:var(--slateL)">Target: <strong style="color:${o.color}">${o.target}</strong></span>
+          </div>
+        </div>
+      </div>`;
+  });
+}
+
+// ══ CHARTS ════════════════════════════════════════════════════════════════════
+function initCharts() {
+  const gridColor = '#e0ddd5';
+  const tickColor = '#8a9ab0';
+
+  const axisDefaults = {
+    grid: { color: gridColor, drawBorder: false },
+    ticks: { color: tickColor },
+  };
+
+  // Resolution trend
+  new Chart(document.getElementById('chart-resolution'), {
+    type: 'line',
+    data: {
+      labels: RESOLUTION.map(d => d.mo),
+      datasets: [
+        {
+          label: 'Avg days',
+          data: RESOLUTION.map(d => d.avgDays),
+          borderColor: '#0d6e6e', borderWidth: 2.5,
+          backgroundColor: 'rgba(13,110,110,0.12)',
+          fill: true, tension: 0.4, pointRadius: 0, pointHoverRadius: 5,
+        },
+        {
+          label: 'Target (6d)',
+          data: RESOLUTION.map(d => d.target),
+          borderColor: '#e05c3a', borderWidth: 1.5,
+          borderDash: [5,3], fill: false, tension: 0, pointRadius: 0,
+        },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+      scales: { x: axisDefaults, y: axisDefaults },
+    }
+  });
+
+  // Pie
+  new Chart(document.getElementById('chart-pie'), {
+    type: 'doughnut',
+    data: {
+      labels: INCIDENTS.map(d => d.type),
+      datasets: [{
+        data: INCIDENTS.map(d => d.pct),
+        backgroundColor: INCIDENTS.map(d => d.color),
+        borderWidth: 2, borderColor: '#fff',
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      cutout: '55%',
+      plugins: { legend: { display: false }, tooltip: { callbacks: { label: ctx => ` ${ctx.label}: ${ctx.parsed}%` } } },
+    }
+  });
+
+  // Disputes bar
+  new Chart(document.getElementById('chart-disputes'), {
+    type: 'bar',
+    data: {
+      labels: RESOLUTION.map(d => d.mo),
+      datasets: [{
+        label: 'Disputes',
+        data: RESOLUTION.map(d => d.disputes),
+        backgroundColor: '#e05c3a', borderRadius: 5, borderSkipped: false,
+      }]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { ...axisDefaults, grid: { display: false } }, y: axisDefaults },
+    }
+  });
+
+  // CSAT
+  new Chart(document.getElementById('chart-csat'), {
+    type: 'line',
+    data: {
+      labels: CSAT.map(d => d.mo),
+      datasets: [
+        {
+          label: 'Host CSAT',
+          data: CSAT.map(d => d.host),
+          borderColor: '#0d6e6e', borderWidth: 2.5,
+          pointBackgroundColor: '#0d6e6e', pointRadius: 4, pointHoverRadius: 6,
+          tension: 0.4, fill: false,
+        },
+        {
+          label: 'Guest CSAT',
+          data: CSAT.map(d => d.guest),
+          borderColor: '#e05c3a', borderWidth: 2.5,
+          pointBackgroundColor: '#e05c3a', pointRadius: 4, pointHoverRadius: 6,
+          tension: 0.4, fill: false,
+        },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: axisDefaults,
+        y: { ...axisDefaults, min: 3.0, max: 5.0 }
+      },
+    }
+  });
+
+  // Cost
+  new Chart(document.getElementById('chart-cost'), {
+    type: 'line',
+    data: {
+      labels: COSTS.map(d => d.mo),
+      datasets: [
+        {
+          label: 'Cost/claim ($)',
+          data: COSTS.map(d => d.perClaim),
+          borderColor: '#e05c3a', borderWidth: 2.5,
+          pointBackgroundColor: '#e05c3a', pointRadius: 3, pointHoverRadius: 5,
+          tension: 0.4, fill: false, yAxisID: 'y',
+        },
+        {
+          label: 'Total spend ($M)',
+          data: COSTS.map(d => d.total),
+          borderColor: '#0d6e6e', borderWidth: 2,
+          borderDash: [5,3], pointRadius: 0,
+          tension: 0.4, fill: false, yAxisID: 'y2',
+        },
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: axisDefaults,
+        y:  { ...axisDefaults, position: 'left'  },
+        y2: { ...axisDefaults, position: 'right', grid: { display: false } },
+      },
+    }
+  });
+}
+
+// ══ TABS ══════════════════════════════════════════════════════════════════════
+function switchTab(name, btn) {
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('panel-' + name).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ══ INIT ══════════════════════════════════════════════════════════════════════
+window.addEventListener('DOMContentLoaded', () => {
+  initTHS();
+  initKPIs();
+  initInsights();
+  initPieLegend();
+  initFunnel();
+  initIncidentTypes();
+  initPain(HOST_PAIN, 'host-pain');
+  initPain(GUEST_PAIN, 'guest-pain');
+  initOKRs();
+  initCharts();
+});
+</script>
+</body>
+</html>
